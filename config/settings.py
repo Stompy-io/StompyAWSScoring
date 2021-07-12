@@ -9,7 +9,7 @@ https://docs.djangoproject.com/en/3.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.2/ref/settings/
 """
-
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -125,3 +125,8 @@ STATIC_URL = '/static/'
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+AWS_CREDENTIALS = {'aws_access_key_id': os.getenv('ALGO_AWS_CREDENTIALS_ACCESS_KEY_ID'),
+                   'aws_secret_access_key': os.getenv('ALGO_AWS_CREDENTIALS_SECRET_ACCESS_KEY')}
+
+MONGODB_CONNECTION = os.getenv('ALGO_MONGODB_CONNECTION')
