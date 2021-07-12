@@ -1,9 +1,9 @@
 import boto3
-from config import conf
-from mappings import REGION_CODE_MAP
+from .mappings import REGION_CODE_MAP
 import json
 import pandas as pd
-from concurrent_task import *
+from .concurrent_task import *
+from django.conf import settings
 
 def getRegionNames(ec2_client=None):
     # session = boto3.session.Session(profile_name=profile_name)
@@ -175,15 +175,15 @@ if __name__ == '__main__':
                    'aws_secret_access_key': "",
                    'aws_session_token': ""}
 
-    client = boto3.client('ec2', **conf.SUB_CREDENTIALS)
+    client = boto3.client('ec2', **settings.AWS_CREDENTIALS)
 
     print(getRegionNames(client))
     print(getGlobalInstanceTypes(client))
 
-    credentials = conf.SUB_CREDENTIALS
+    credentials = settings.AWS_CREDENTIALS
     credentials['region_name'] = 'us-east-1'
     client = boto3.client('pricing', **credentials)
-    s3client = boto3.client('s3', **conf.SUB_CREDENTIALS)
+    s3client = boto3.client('s3', **settings.AWS_CREDENTIALS)
 
     # update_ondemand_price(client,s3client)
     df = get_ondemand_price_list(s3client)

@@ -18,10 +18,10 @@
 
 """
 
-from config import conf
-from mappings import SYSTEM_MAP
-from utils import listdir_nohidden
-from utils import normalize_by_columns
+from django.conf import settings
+from .mappings import SYSTEM_MAP
+from .utils import listdir_nohidden
+from .utils import normalize_by_columns
 import requests
 import json
 import os
@@ -304,7 +304,10 @@ def score_by_operating_system(response: dict) -> dict:
     return op_score
 
 
-
+def write_to_mongo():
+    pass
+def read_from_mongo():
+    pass
 
 if __name__ == '__main__':
     pd.set_option('display.max_rows', None)
@@ -318,7 +321,7 @@ if __name__ == '__main__':
     # df['InterruptionRate'] = df['InterruptionRate'].apply(lambda x: rates[x])
     # df['SavingsOverOnDemand'] = df['SavingsOverOnDemand'].apply(lambda x: round(x / 100, 2))
     import boto3
-    s3client = boto3.client('s3', **conf.SUB_CREDENTIALS)
+    s3client = boto3.client('s3', **settings.AWS_CREDENTIALS)
     response = get_spot_advisor_data(s3client=s3client, local=False)
     data = fetch_scores(response, region=['ap-northeast-1', 'ap-northeast-2'],
                       product_description=['Linux/UNIX (Amazon VPC)'],
@@ -334,7 +337,7 @@ if __name__ == '__main__':
 
     ax = sns.heatmap(score_mx, vmin=0, vmax=1, cmap="YlGnBu", annot=True)
 
-    # client = boto3.client('s3', **conf.SUB_CREDENTIALS)
+    # client = boto3.client('s3', **settings.AWS_CREDENTIALS)
     # for policy in strategies:
     #     df = sa.model(**policy)
     #     # sns.displot(df['Score'])

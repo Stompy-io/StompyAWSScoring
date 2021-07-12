@@ -1,14 +1,14 @@
 import numpy as np
 import boto3
 import pandas as pd
-import spot_price_history as sph
-import spot_advisor as sa
-import random_forest as rdf
-import user, ec2
-from config import conf
-from mappings import *
-from utils import normalize_by_columns,ParquetTranscoder
-from concurrent_task import *
+from . import spot_price_history as sph
+from . import spot_advisor as sa
+from . import random_forest as rdf
+from . import user, ec2
+from .mappings import *
+from .utils import normalize_by_columns,ParquetTranscoder
+from .concurrent_task import *
+from django.conf import settings
 
 
 
@@ -131,12 +131,33 @@ def write_to_s3(s3client, df,region,system):
     return True
 
 
+def read_from_s3(s3client, region, system):
+    try:
+        key = (f'ec2/spot_market_scores/'
+               f'{region}_{ParquetTranscoder.encode(system)}.csv')
+
+        response = s3client.get_object(
+            Bucket='stompy-aws-dataset',
+            Key=key
+        )
+        df = pd.read_csv(response.get('Body'))
+
+        df['Score'] = df['Score'].astype('int64')
+        return df.to_dict(orient='records')
+    except Exception as e:
+        raise
+
+
+def write_to_mongo():
+    pass
+def read_from_mongo():
+    pass
 
 if __name__ == '__main__':
 
-    pricing_client = boto3.client('pricing', region_name='us-east-1', **conf.SUB_CREDENTIALS)
-    s3client = boto3.client('s3', **conf.SUB_CREDENTIALS)
-    clients = user.get_client_list(**conf.SUB_CREDENTIALS)
+    pricing_client = boto3.client('pricing', region_name='us-east-1', **settings.AWS_CREDENTIALS)
+    s3client = boto3.client('s3', **settings.AWS_CREDENTIALS)
+    clients = user.get_client_list(**settings.AWS_CREDENTIALS)
 
     # ec2.update_ondemand_price(pricing_client,s3client)
     ondemand = ec2.get_ondemand_price_list(s3client)

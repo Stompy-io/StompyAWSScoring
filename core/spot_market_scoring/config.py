@@ -15,10 +15,13 @@ class CONFIG:
                       "port": "5432",
                       "password": "e623b2f66fa8e79b009e1b562564a132e77236c7d2999963e20b74271dda9eca"}
 
+    MONGODB_CONNECTION = "mongodb+srv://sophia:nMOz5qpTQ7uRXLqC@spot-market-scores.mr8yo.mongodb.net/spot-market-scores?retryWrites=true&w=majority"
     ROOT_PATH = os.path.dirname(__file__)
     # uncomment this line for local use
     # DATA_PATH = os.path.join(ROOT_PATH, 'Stompy.phase.2.data')
     DATA_PATH = "/Users/Sophiawang1228/Documents/GitHub/Stompy.phase.2.data"
+
+
 
     LOG_PATH = os.path.join(ROOT_PATH, 'logs')
     LOG_SIZE = 10 * 1024 * 1024

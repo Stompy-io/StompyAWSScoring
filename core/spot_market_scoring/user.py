@@ -1,5 +1,5 @@
-from mappings import REGION_CODE_MAP
-from config import conf
+from .mappings import REGION_CODE_MAP
+from django.conf import settings
 import boto3
 
 
@@ -53,7 +53,7 @@ def get_client_list(**credentials):
 
 
 if __name__ == '__main__':
-    ec2 = boto3.client('ec2', **conf.SUB_CREDENTIALS)
+    ec2 = boto3.client('ec2', **settings.AWS_CREDENTIALS)
 
     # Retrieves all regions/endpoints that work with EC2
     regions = get_region_list(ec2)

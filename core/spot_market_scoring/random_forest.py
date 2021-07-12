@@ -1,12 +1,10 @@
-# forecast monthly births with random forest
 import pandas as pd
 import numpy as np
 import sklearn.ensemble as skl_ens
 import sklearn.metrics as skl_met
 
-
-from config import conf
-from mappings import *
+from django.conf import settings
+from .mappings import *
 
 # pd.set_option('display.max_columns', None)
 # pd.set_option('display.width', 1000)
@@ -161,19 +159,10 @@ if __name__ == '__main__':
     # d_path = os.path.join(conf.ROOT_PATH, 'data', 'samples')
     #
     # params = 'us-east-1b', 'Linux/UNIX (Amazon VPC)', 'r5.xlarge', 2018
-    #
-    # a_df = pd.read_csv(os.path.join(d_path, 'r5.xlarge.18-19.us-east-1a.csv')).drop(labels=['Unnamed: 0'], axis=1)
-    # b_df = pd.read_csv(os.path.join(d_path, 'r5.xlarge.18-19.us-east-1b.csv')).drop(labels=['Unnamed: 0'], axis=1)
-    # c_df = pd.read_csv(os.path.join(d_path, 'r5.xlarge.18-19.us-east-1c.csv')).drop(labels=['Unnamed: 0'], axis=1)
-    # d_df = pd.read_csv(os.path.join(d_path, 'r5.xlarge.18-19.us-east-1d.csv')).drop(labels=['Unnamed: 0'], axis=1)
-    # f_df = pd.read_csv(os.path.join(d_path, 'r5.xlarge.18-19.us-east-1f.csv')).drop(labels=['Unnamed: 0'], axis=1)
 
     # a_df = a_df.drop_duplicates(subset=['Timestamp']).reset_index(drop=True)
     # a_df['Timestamp'] = a_df['Timestamp'].apply(lambda x: Dtm(x).to_utm().to_int())
 
-    # dss = (ss[1:].reset_index(drop=True) - ss[:-1].reset_index(drop=True))
-    # print(dss)
-    #
     # plt.plot(dss.index, dss.values)
     # plt.xticks(rotation=45)
     # # plt.gca().xaxis.set_major_locator(ticker.MultipleLocator(50))
@@ -187,12 +176,11 @@ if __name__ == '__main__':
         #plt.show()
         # train_spot_price_prediction_model(i_df)
 
-    data_path = conf.DATA_PATH
-    import spot_price_history as sph
+    from . import spot_price_history as sph
     import boto3
     region='ap-east-1'
     system=SYSTEM_LIST[0]
-    s3client = boto3.client('s3', **conf.SUB_CREDENTIALS)
+    s3client = boto3.client('s3', **settings.AWS_CREDENTIALS)
     res_avg, res_std, ins_dict = sph.get_savings_statistics(region=region,
                                                             system=system, s3client=s3client, year=2021,
                                                             period="Month")

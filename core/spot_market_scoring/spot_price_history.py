@@ -20,16 +20,16 @@
     Helper Functions:
 
 """
-from concurrent_task import *
-from mappings import *
-from utils import *
-from config import conf
+from .concurrent_task import *
+from .mappings import *
+from .utils import *
 import pandas as pd
 import datetime
 import boto3
 import os
 import json
 import time
+from django.conf import settings
 
 
 def get_spot_price_history(client, region, days_back: int = 30,
@@ -224,7 +224,6 @@ def get_savings_statistics(region: str, system:None,
     return avg_entries, std_entries, ins_dict
 
 
-
 def get_spot_instance_list(s3client):
     try:
         key = 'ec2/spot_instance_list.json'
@@ -344,7 +343,10 @@ def get_mean_and_std(df, period: str) -> (dict, dict):
     # print(scores.mean(axis=0),scores.std(axis=0))
     return scores.mean(axis=0).to_dict(), scores.std(axis=0).to_dict()
 
-
+def write_to_mongo():
+    pass
+def read_from_mongo():
+    pass
 # function for writing timestamps to files in case you forgot to save it
 # def add_datetime(path: str, year: int, region, product_description, start_time='2021-03-27',
 #                  end_time=pd.Timestamp.today()):
@@ -382,7 +384,7 @@ if __name__ == '__main__':
 
     from user import get_client_list
 
-    clients = get_client_list(**conf.SUB_CREDENTIALS)
+    clients = get_client_list(**settings.AWS_CREDENTIALS)
 
     region = 'ap-east-1'
     client = clients[region]
@@ -413,7 +415,7 @@ if __name__ == '__main__':
 
     #
 
-    s3client = boto3.client('s3', **conf.SUB_CREDENTIALS)
+    s3client = boto3.client('s3', **settings.AWS_CREDENTIALS)
     # update_spot_price_history_in_all_region(clients, data_path, 2021, days_back=90, s3client=s3client, local=False)
     # read_from_s3(s3client,'ap-east-1',SYSTEM_LIST[0],2021)
     # upload_all_spot_price_history_to_s3(s3client,data_path)
