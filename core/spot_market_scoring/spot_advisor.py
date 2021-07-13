@@ -20,6 +20,7 @@
 
 from django.conf import settings
 from .mappings import SYSTEM_MAP
+from datetime import datetime
 from .utils import listdir_nohidden
 from .utils import normalize_by_columns
 import requests
@@ -36,7 +37,7 @@ balanced_optim = {'savings_weight': 1,
 
 
 
-def get_spot_advisor_data(path=None, file_date: [str, date] = None, s3client = None, local=False) -> dict:
+def get_spot_advisor_data(path=None, file_date: [str, date] = None, dbclient = None, local=False) -> dict:
     """
     load spot_advisor data from path, if file does not exist,
     download from url and save in path
@@ -49,32 +50,33 @@ def get_spot_advisor_data(path=None, file_date: [str, date] = None, s3client = N
 
     if isinstance(file_date, str):
         try:
-            datetime.datetime.strptime(file_date, date_format)
+            datetime.strptime(file_date, date_format)
         except ValueError:
             print("Date format should be YYYY-MM-DD")
     if file_date is None:
         file_date = date.today().strftime("%Y-%m-%d")
 
-    if not local and not s3client:
-        print("Please either set local to True or pass in boto3 s3 client")
+    if not local and not dbclient:
+        print("Please either set local to True or pass in mongodb client")
         return
     try:
         if local:
             spot_advisor = read_from_local(path,file_date)
             return spot_advisor
         else:
-            spot_advisor = read_from_s3(s3client, file_date)
+            spot_advisor = read_from_mongo(dbclient, file_date)
             return spot_advisor
     except Exception as e:
         print('Reading failed, downloading current date data')
 
         url = "https://spot-bid-advisor.s3.amazonaws.com/spot-advisor-data.json"
         response = requests.get(url=url)
-        spot_advisor = json.loads(response.text)['spot_advisor']
+        response = response.text
+        # spot_advisor = json.loads(response.text)['spot_advisor']
         if local:
-            write_to_local(path,spot_advisor)
+            write_to_local(path,response)
         else:
-            write_to_s3(s3client,spot_advisor, file_date)
+            write_to_mongo(dbclient,response, file_date)
         return spot_advisor
 
 
@@ -255,9 +257,6 @@ def flatten(response: dict)-> dict:
     return records
 
 
-
-
-
 def average_by_columns(df, columns: []) -> dict:
     """
     calculate IR/SV scores based on columns of df
@@ -304,10 +303,24 @@ def score_by_operating_system(response: dict) -> dict:
     return op_score
 
 
-def write_to_mongo():
-    pass
-def read_from_mongo():
-    pass
+def write_to_mongo(dbclient, response, file_date):
+    db = dbclient['spot-market-scores']
+
+    spot_advisor = {
+        'date': file_date,
+        'data': response
+    }
+    db.spot_advisor.insert_one(spot_advisor)
+    return
+
+def read_from_mongo(dbclient, file_date):
+    db = dbclient['spot-market-scores']
+    collection = db['spot_advisor']
+
+    response = collection.find_one({'date': file_date},{'_id': 0, 'data':1})
+
+    spot_advisor = json.loads(response['data'])['spot_advisor']
+    return spot_advisor
 
 if __name__ == '__main__':
     pd.set_option('display.max_rows', None)
