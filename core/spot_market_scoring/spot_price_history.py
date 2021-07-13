@@ -24,7 +24,7 @@ from .concurrent_task import *
 from .mappings import *
 from .utils import *
 import pandas as pd
-import datetime
+from datetime import datetime, timezone,timedelta
 import boto3
 import os
 import json
@@ -47,7 +47,7 @@ def get_spot_price_history(client, region, days_back: int = 30,
     print(f'loading {region}, {productDescription} data from AWS')
 
     filters = {}
-    start_time = datetime.datetime.now() - datetime.timedelta(days=days_back)
+    start_time = datetime.now(timezone.utc) - timedelta(days=days_back)
     filters['StartTime'] = start_time
     if availabilityZone:
         filters['AvailabilityZone'] = availabilityZone
@@ -97,7 +97,7 @@ def read_from_s3(s3client, region: str = 'us-east-1',
 
         df = pd.read_csv(response.get('Body'))
         df['Timestamp'] = df['Timestamp'].apply(pd.Timestamp)
-        start_day = datetime.datetime.today()-datetime.timedelta(days=days_back)
+        start_day = datetime.today()-timedelta(days=days_back)
         df = df.loc[df.Timestamp >= start_day].copy()
         df['SpotPrice'] = df['SpotPrice'].astype('float')
 
@@ -134,8 +134,8 @@ def write_to_s3(df,s3client,region:str,system:str,year:int):
 
 
 def update_spot_price_history_in_all_region(clients: [boto3.client],
-                                            path: str, year: int, days_back=30,
-                                            s3client: boto3.client = None, local: bool = True):
+                                             year: int, days_back=30,
+                                            s3client: boto3.client = None,path: str="", local: bool = True):
     """
     Get spot price history for all regions and save to local path
     :param clients: list of ec2 clients in all region
@@ -187,13 +187,14 @@ def update_spot_price_history(client, s3client, region, system,days_back,year):
         df.drop_duplicates(inplace=True)
         df.reset_index(drop=True,inplace=True)
 
+        write_to_s3(df, s3client, region, system, year)
+        print(f"{region} {system} updated")
     except Exception as e:
-        print(f'[ERR] {region} {system} : {e}')
+        print(f'[ERR]: {e}')
+        print(f'{region} {system} update failed')
         # print(f'{region} {system} data may not exist, please update data first')
 
 
-    write_to_s3(df, s3client, region, system, year)
-    print(f"{region} {system} updated")
 
     return response
 
@@ -201,7 +202,6 @@ def update_spot_price_history(client, s3client, region, system,days_back,year):
 def get_savings_statistics(region: str, system:None,
                            year: int=2021, period="Month",
                            s3client=None, days_back=90) -> (dict, dict):
-
 
     avg_entries, std_entries = {}, {}
     df = read_from_s3(s3client=s3client, region=region, system=system, year=year)
@@ -305,7 +305,7 @@ def reformat(spot_prices: pd.DataFrame, resolution: str = '1D') -> pd.DataFrame:
     try:
         az_df_dict = {az: pd.Series(df['SpotPrice'], name=az) for az, df in spot_prices.groupby("AvailabilityZone")}
         spot_prices = pd.concat(list(az_df_dict.values()), axis=1)
-        spot_prices.loc[pd.Timestamp.now()] = spot_prices.tail(1).copy().iloc[0]
+        spot_prices.loc[pd.Timestamp.now(tz='UTC')] = spot_prices.tail(1).copy().iloc[0]
         spot_prices.fillna(method='ffill', inplace=True)
         spot_prices.fillna(method='bfill', inplace=True)
 
@@ -389,20 +389,14 @@ if __name__ == '__main__':
     region = 'ap-east-1'
     client = clients[region]
 
-    data_path = conf.DATA_PATH
-
-    # if not os.path.exists(data_path):
-    #     os.mkdir(data_path)
-    #
-
-    # print("----Example for reading spot price from AWS----")
-    # response = get_spot_price_history(client, days_back=1, region=region
-    #                                   # instanceType='p3.16xlarge',
-    #                                   #availabilityZone='us-east-1a',
-    #                                    #productDescription='Windows (Amazon VPC)'
-    #                                   )
-    # df = to_dataframe(response)
-    # print(df)
+    print("----Example for reading spot price from AWS----")
+    response = get_spot_price_history(client, days_back=1, region=region,
+                                      instanceType='p3.16xlarge',
+                                      availabilityZone='us-east-1a',
+                                       productDescription='Windows (Amazon VPC)'
+                                      )
+    df = to_dataframe(response)
+    print(df)
 
     # #i_df = reformat(df)
     # print(df)
@@ -416,7 +410,7 @@ if __name__ == '__main__':
     #
 
     s3client = boto3.client('s3', **settings.AWS_CREDENTIALS)
-    # update_spot_price_history_in_all_region(clients, data_path, 2021, days_back=90, s3client=s3client, local=False)
+    update_spot_price_history_in_all_region(clients, year=2021, days_back=90, s3client=s3client, local=False)
     # read_from_s3(s3client,'ap-east-1',SYSTEM_LIST[0],2021)
     # upload_all_spot_price_history_to_s3(s3client,data_path)
     # print("----Example for generating a spot instance list----")

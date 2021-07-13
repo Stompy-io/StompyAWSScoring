@@ -159,6 +159,7 @@ if __name__ == '__main__':
     s3client = boto3.client('s3', **settings.AWS_CREDENTIALS)
     clients = user.get_client_list(**settings.AWS_CREDENTIALS)
 
+    sph.update_spot_price_history_in_all_region(clients, year=2021, days_back=10, s3client=s3client, local=False)
     # ec2.update_ondemand_price(pricing_client,s3client)
     ondemand = ec2.get_ondemand_price_list(s3client)
     ondemand.reset_index(drop=True,inplace=True)
