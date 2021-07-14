@@ -129,15 +129,15 @@ def update_spot_price_history(client, s3client, dbclient, region, system,days_ba
 
 
     try:
-        # prev_df = read_from_s3(s3client, region, system, year)
-        #
-        # df = pd.concat((prev_df,df))
-        # df['SpotPrice'] = df['SpotPrice'].astype('float')
-        # df.sort_values(['InstanceType', 'AvailabilityZone', 'Timestamp'],inplace=True)
-        # df.drop_duplicates(inplace=True)
-        # df.reset_index(drop=True,inplace=True)
+        prev_df = read_from_s3(s3client, region, system, year)
 
-        write_to_mongo(df, dbclient, region, system, year)
+        df = pd.concat((prev_df,df))
+        df['SpotPrice'] = df['SpotPrice'].astype('float')
+        df.sort_values(['InstanceType', 'AvailabilityZone', 'Timestamp'],inplace=True)
+        df.drop_duplicates(inplace=True)
+        df.reset_index(drop=True,inplace=True)
+
+        write_to_s3(df, s3client, region, system, year)
         print(f"{region} {system} updated")
     except Exception as e:
         print(f'[ERR]: {e}')
