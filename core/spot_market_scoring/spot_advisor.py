@@ -19,10 +19,10 @@
 """
 
 from django.conf import settings
-from .mappings import SYSTEM_MAP
+from core.spot_market_scoring.mappings import SYSTEM_MAP
 from datetime import datetime
 from .utils import listdir_nohidden
-from .utils import normalize_by_columns
+from core.spot_market_scoring.utils import normalize_by_columns
 import requests
 import json
 import os
@@ -77,7 +77,7 @@ def get_spot_advisor_data(path=None, file_date: [str, date] = None, dbclient = N
             write_to_local(path,response)
         else:
             write_to_mongo(dbclient,response, file_date)
-        return spot_advisor
+        return json.loads(response)
 
 
 def read_from_s3(s3client, file_date):

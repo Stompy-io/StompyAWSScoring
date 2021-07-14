@@ -20,16 +20,17 @@
     Helper Functions:
 
 """
-from .concurrent_task import *
-from .mappings import *
-from .utils import *
+from core.spot_market_scoring.concurrent_task import *
+from core.spot_market_scoring.mappings import *
+from core.spot_market_scoring.utils import *
 import pandas as pd
 from datetime import datetime, timezone,timedelta
 import boto3
 import os
 import json
 import time
-from django.conf import settings
+# from django.conf import settings
+from core.spot_market_scoring.config import conf
 
 
 def get_spot_price_history(client, region, days_back: int = 30,
@@ -129,13 +130,13 @@ def update_spot_price_history(client, s3client, dbclient, region, system,days_ba
 
 
     try:
-        prev_df = read_from_s3(s3client, region, system, year)
-
-        df = pd.concat((prev_df,df))
-        df['SpotPrice'] = df['SpotPrice'].astype('float')
-        df.sort_values(['InstanceType', 'AvailabilityZone', 'Timestamp'],inplace=True)
-        df.drop_duplicates(inplace=True)
-        df.reset_index(drop=True,inplace=True)
+        # prev_df = read_from_s3(s3client, region, system, year)
+        #
+        # df = pd.concat((prev_df,df))
+        # df['SpotPrice'] = df['SpotPrice'].astype('float')
+        # df.sort_values(['InstanceType', 'AvailabilityZone', 'Timestamp'],inplace=True)
+        # df.drop_duplicates(inplace=True)
+        # df.reset_index(drop=True,inplace=True)
 
         write_to_s3(df, s3client, region, system, year)
         print(f"{region} {system} updated")
@@ -241,7 +242,7 @@ def to_dataframe(response: dict) -> pd.DataFrame:
         return
     spot_prices = pd.DataFrame(response, columns=indices)
     # set data format
-    spot_prices["Timestamp"] = spot_prices['Timestamp'].astype('datetime64[ns]')
+    # spot_prices["Timestamp"] = spot_prices['Timestamp'].astype('datetime64[ns]')
     # spot_prices.set_index("Timestamp", inplace=True)
     #spot_prices["SpotPrice"] = spot_prices.SpotPrice.astype(float)
 
@@ -351,12 +352,13 @@ def read_from_s3(s3client, region: str = 'us-east-1',
 
         df = pd.read_csv(response.get('Body'))
         df['Timestamp'] = df['Timestamp'].apply(pd.Timestamp)
-        start_day = datetime.today()-timedelta(days=days_back)
+        start_day = datetime.now(timezone.utc)-timedelta(days=days_back)
         df = df.loc[df.Timestamp >= start_day].copy()
         df['SpotPrice'] = df['SpotPrice'].astype('float')
 
         return df
     except Exception as e:
+        print(e)
         raise
 
 
@@ -389,8 +391,8 @@ def read_from_mongo(dbclient, region: str = 'us-east-1',
 if __name__ == '__main__':
 
     from user import get_client_list
-
-    clients = get_client_list(**settings.AWS_CREDENTIALS)
+    clients = get_client_list(**conf.AWS_CREDENTIALS)
+    #clients = get_client_list(**settings.AWS_CREDENTIALS)
 
     region = 'ap-east-1'
     client = clients[region]
@@ -415,7 +417,7 @@ if __name__ == '__main__':
 
     #
 
-    s3client = boto3.client('s3', **settings.AWS_CREDENTIALS)
+    s3client = boto3.client('s3', **conf.AWS_CREDENTIALS)
     update_spot_price_history_in_all_region(clients, year=2021, days_back=90, s3client=s3client, local=False)
     # read_from_s3(s3client,'ap-east-1',SYSTEM_LIST[0],2021)
     # upload_all_spot_price_history_to_s3(s3client,data_path)

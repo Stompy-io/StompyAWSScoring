@@ -4,9 +4,7 @@ import sys
 
 class CONFIG:
     ROOT_ACC = {"id": "263078123597", "email": "admin@stompy.io", "biz": "AWS"}
-    AWS_CREDENTIALS = {"aws_access_key_id": "AKIAVTKQUJDYYVD4ZYR6",
-                       "aws_secret_access_key": "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"}
-    SUB_CREDENTIALS = {'aws_access_key_id': 'AKIAT2QFNTBGUDLJXUZ6',
+    AWS_CREDENTIALS = {'aws_access_key_id': 'AKIAT2QFNTBGUDLJXUZ6',
                        'aws_secret_access_key': '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'}
 
     DB_CREDENTIALS = {"host": "ec2-52-203-98-126.compute-1.amazonaws.com",

@@ -1,8 +1,8 @@
 import boto3
-from .mappings import REGION_CODE_MAP
+from core.spot_market_scoring.mappings import REGION_CODE_MAP
 import json
 import pandas as pd
-from .concurrent_task import *
+from core.spot_market_scoring.concurrent_task import *
 from django.conf import settings
 
 def getRegionNames(ec2_client=None):
