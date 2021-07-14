@@ -107,6 +107,10 @@ def write_to_s3(s3client, df):
         raise
 
 
+def write_to_mongodb(dbclient, df):
+    pass
+
+
 def get_ondemand_price_list(s3client):
     try:
         key = 'ec2/ondemand_price.csv'

@@ -1,6 +1,7 @@
 from pymongo import MongoClient
 from . import spot_price_history as sph
 from . import spot_market_scoring as sms
+from . import spot_advisor as sa
 import boto3
 #from config import conf
 from .mappings import *
@@ -71,7 +72,10 @@ def update_spot_market_scores(s3client, dbclient):
             db.scores.insert_many(data_dict)
     return
 
+def update_spot_advisor_data(s3client, dbclient):
 
+
+    return
 
 if __name__ == '__main__':
     dbclient = MongoClient(settings.MONGODB_CONNECTION)

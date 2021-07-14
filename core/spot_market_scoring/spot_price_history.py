@@ -82,60 +82,9 @@ def read_from_local(path, region,
     return pd.read_csv(i_path)
 
 
-def read_from_s3(s3client, region: str = 'us-east-1',
-                 system: str = SYSTEM_LIST[0],
-                 year: int = 2021, days_back=90):
-    try:
-        key = (f'ec2/spot_price_history/Region={region}/'
-               f'ProductDescription={ParquetTranscoder.encode(system)}/'
-               f'{year}.csv')
-
-        response = s3client.get_object(
-            Bucket='stompy-aws-dataset',
-            Key=key
-        )
-
-        df = pd.read_csv(response.get('Body'))
-        df['Timestamp'] = df['Timestamp'].apply(pd.Timestamp)
-        start_day = datetime.today()-timedelta(days=days_back)
-        df = df.loc[df.Timestamp >= start_day].copy()
-        df['SpotPrice'] = df['SpotPrice'].astype('float')
-
-        # spot_prices.set_index("Timestamp", inplace=True)
-        # df["SpotPrice"] = df.SpotPrice.astype(float)
-        # df.set_index("Timestamp", inplace=True)
-        # df.sort_index(inplace=True)
-
-        return df
-    except Exception as e:
-        raise
-
-
-def write_to_s3(df,s3client,region:str,system:str,year:int):
-
-    try:
-        key = (f'ec2/spot_price_history/Region={region}/'
-               f'ProductDescription={ParquetTranscoder.encode(system)}/'
-               f'{year}.csv')
-        df['SpotPrice'] = df['SpotPrice'].astype('string')
-        from io import StringIO
-        # df['Timestamp'] = df.index
-        csv_buffer = StringIO()
-        df.to_csv(csv_buffer,index=False)
-        s3client.put_object(
-            Bucket='stompy-aws-dataset',
-            Key=key,
-            Body=csv_buffer.getvalue()
-        )
-
-        return True
-    except Exception as e:
-        raise
-
-
 def update_spot_price_history_in_all_region(clients: [boto3.client],
                                              year: int, days_back=30,
-                                            s3client: boto3.client = None,path: str="", local: bool = True):
+                                            s3client: boto3.client = None,dbclient=None,path: str="", local: bool = True):
     """
     Get spot price history for all regions and save to local path
     :param clients: list of ec2 clients in all region
@@ -152,7 +101,7 @@ def update_spot_price_history_in_all_region(clients: [boto3.client],
     executor = ThreadPoolExecutor()
     response = ConcurrentTaskPool(executor).add([
         ConcurrentTask(executor, task=update_spot_price_history,
-                       t_args=(clients[region], s3client,region,
+                       t_args=(clients[region], s3client,dbclient,region,
                                prod,days_back,year))
         for prod in SYSTEM_LIST for region in regions
     ]).get_results()
@@ -164,7 +113,7 @@ def update_spot_price_history_in_all_region(clients: [boto3.client],
     return response
 
 
-def update_spot_price_history(client, s3client, region, system,days_back,year):
+def update_spot_price_history(client, s3client, dbclient, region, system,days_back,year):
     """
     upload local data to s3 bucket
     with key: regions/productdescription/instancttype/year.csv
@@ -173,21 +122,22 @@ def update_spot_price_history(client, s3client, region, system,days_back,year):
     """
 
     response = get_spot_price_history(client,region,days_back,system)
+
     df = to_dataframe(response)
     # print(f'Appending {region}, {system}')
     # df['Timestamp'] = df.index
 
 
     try:
-        prev_df = read_from_s3(s3client, region, system, year)
+        # prev_df = read_from_s3(s3client, region, system, year)
+        #
+        # df = pd.concat((prev_df,df))
+        # df['SpotPrice'] = df['SpotPrice'].astype('float')
+        # df.sort_values(['InstanceType', 'AvailabilityZone', 'Timestamp'],inplace=True)
+        # df.drop_duplicates(inplace=True)
+        # df.reset_index(drop=True,inplace=True)
 
-        df = pd.concat((prev_df,df))
-        df['SpotPrice'] = df['SpotPrice'].astype('float')
-        df.sort_values(['InstanceType', 'AvailabilityZone', 'Timestamp'],inplace=True)
-        df.drop_duplicates(inplace=True)
-        df.reset_index(drop=True,inplace=True)
-
-        write_to_s3(df, s3client, region, system, year)
+        write_to_mongo(df, dbclient, region, system, year)
         print(f"{region} {system} updated")
     except Exception as e:
         print(f'[ERR]: {e}')
@@ -343,42 +293,98 @@ def get_mean_and_std(df, period: str) -> (dict, dict):
     # print(scores.mean(axis=0),scores.std(axis=0))
     return scores.mean(axis=0).to_dict(), scores.std(axis=0).to_dict()
 
-def write_to_mongo():
-    pass
-def read_from_mongo():
-    pass
-# function for writing timestamps to files in case you forgot to save it
-# def add_datetime(path: str, year: int, region, product_description, start_time='2021-03-27',
-#                  end_time=pd.Timestamp.today()):
-#     index = pd.date_range(start_time, end_time, freq='D')
-#     sys = product_description
-#     i_path = os.path.join(path,
-#                           'Region=' + region,
-#                           'ProductDescription=' + ParquetTranscoder.encode(sys))
-#
-#     for f0 in listdir_nohidden(i_path):
-#
-#         filepath = os.path.join(i_path, f0, str(year) + '.csv')
-#
-#         i_df = pd.read_csv(filepath)
-#         if len(i_df) != 91:
-#             print('modified "%s"' % filepath)
-#             print(len(i_df))
-#             i_df['Timestamp'] = index[-len(i_df):]
-#         else:
-#             i_df['Timestamp'] = index
-#
-#         i_df.to_csv(filepath, index=False)
 
-# def rename_datetime(path: str,year: str=2021):
-#     path = os.path.join(path, 'spot_price_history')
-#     for f0 in listdir_nohidden(path):
-#         for f1 in listdir_nohidden(os.path.join(path,f0)):
-#             for f2 in listdir_nohidden(os.path.join(path, f0, f1)):
-#                 filepath = os.path.join(path, f0, f1,f2,str(year) + '.csv')
-#                 i_df = pd.read_csv(filepath)
-#                 i_df.rename(columns={"TimeStamp": "Timestamp"}, inplace=True)
-#                 i_df.to_csv(filepath, index=False)
+def write_to_s3(df,s3client,region:str,system:str,year:int):
+
+    try:
+        key = (f'ec2/spot_price_history/Region={region}/'
+               f'ProductDescription={ParquetTranscoder.encode(system)}/'
+               f'{year}.csv')
+        df['SpotPrice'] = df['SpotPrice'].astype('string')
+        from io import StringIO
+        # df['Timestamp'] = df.index
+        csv_buffer = StringIO()
+        df.to_csv(csv_buffer,index=False)
+        s3client.put_object(
+            Bucket='stompy-aws-dataset',
+            Key=key,
+            Body=csv_buffer.getvalue()
+        )
+
+        return True
+    except Exception as e:
+        raise
+
+
+def write_to_mongo(df,dbclient,region:str,system:str,year:int):
+    try:
+        df['SpotPrice'] = df['SpotPrice'].astype('string')
+        sph = dbclient['spot-market-scores']
+        collections = sph['spot_price_history']
+
+        data_dict = df.to_dict(orient='records')
+        data = {
+            'region': region,
+            'system': system,
+            'year': year,
+            'data': data_dict
+        }
+        collections.insert_one(data)
+
+        return True
+    except Exception as e:
+        raise
+
+
+def read_from_s3(s3client, region: str = 'us-east-1',
+                 system: str = SYSTEM_LIST[0],
+                 year: int = 2021, days_back=90):
+    try:
+        key = (f'ec2/spot_price_history/Region={region}/'
+               f'ProductDescription={ParquetTranscoder.encode(system)}/'
+               f'{year}.csv')
+
+        response = s3client.get_object(
+            Bucket='stompy-aws-dataset',
+            Key=key
+        )
+
+        df = pd.read_csv(response.get('Body'))
+        df['Timestamp'] = df['Timestamp'].apply(pd.Timestamp)
+        start_day = datetime.today()-timedelta(days=days_back)
+        df = df.loc[df.Timestamp >= start_day].copy()
+        df['SpotPrice'] = df['SpotPrice'].astype('float')
+
+        return df
+    except Exception as e:
+        raise
+
+
+def read_from_mongo(dbclient, region: str = 'us-east-1',
+                 system: str = SYSTEM_LIST[0],
+                 year: int = 2021, days_back=90):
+    try:
+
+        sph = dbclient['spot-market-scores']
+        collections = sph['spot_price_history']
+
+        filter = {
+            'region': region,
+            'system': system,
+            'year': year
+        }
+
+        response = collections.find_one(filter)
+
+        df = pd.Dataframe(response['data'])
+        df['Timestamp'] = df['Timestamp'].apply(pd.Timestamp)
+        start_day = datetime.today()-timedelta(days=days_back)
+        df = df.loc[df.Timestamp >= start_day].copy()
+        df['SpotPrice'] = df['SpotPrice'].astype('float')
+
+        return df
+    except Exception as e:
+        raise
 
 if __name__ == '__main__':
 
