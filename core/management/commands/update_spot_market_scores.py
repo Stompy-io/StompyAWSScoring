@@ -16,13 +16,13 @@ class Command(BaseCommand):
         clients = user.get_client_list(**settings.AWS_CREDENTIALS)
         dbclient = MongoClient(settings.MONGODB_CONNECTION)
 
+        # days_back set for 2 days for now, should be set 1 after schedule to run daily
+        sph.update_spot_price_history_in_all_region(clients, year=2021, days_back=2,
+                                                    s3client=s3client, dbclient=dbclient, local=False)
 
+        # can take some time to run, can be schedule to update weekly?
+        ec2.update_ondemand_price(pricing_client,s3client)
 
-        # sph.update_spot_price_history_in_all_region(clients, year=2021, days_back=90,
-        #                                             s3client=s3client, dbclient=dbclient, local=False)
-
-
-        # ec2.update_ondemand_price(pricing_client,s3client)
         ondemand = ec2.get_ondemand_price_list(s3client)
         ondemand.reset_index(drop=True, inplace=True)
 
