@@ -1,4 +1,4 @@
-from .mappings import REGION_CODE_MAP
+from core.spot_market_scoring.mappings import REGION_CODE_MAP
 from django.conf import settings
 import boto3
 
