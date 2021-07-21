@@ -77,7 +77,7 @@ def get_spot_advisor_data(path=None, file_date: [str, date] = None, dbclient = N
             write_to_local(path,response)
         else:
             write_to_mongo(dbclient,response, file_date)
-        return json.loads(response)
+        return json.loads(response)['spot-advisor']
 
 
 def read_from_s3(s3client, file_date):
