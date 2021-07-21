@@ -9,28 +9,15 @@ class Command(BaseCommand):
     
     def save_data_to_mongo(self, region_code, data):
         dbclient = MongoClient(settings.MONGODB_CONNECTION)
-        db = dbclient['aws-data']
-        collection = db['instance_type']
-        data_filter = {'region_code': region_code}
-        update_data = {
-            '$setOnInsert': {
-                'region_code': region_code,
-                'data': data
-            }
-        }
-        data = {
-            'region_code': region_code,
-            'data': data
-        }
-        # collection.update_many(data_filter, update_data, upsert=True)
-        collection.insert_one(data)
-    
-    def get_aws_data(self):
-        pass        
+        db = dbclient['instances']
+        collection = db[region_code]
+        collection.remove({})
+        collection.insert_many(data)
 
     def handle(self, *args, **options):
         start = time.time()
         for region in REGION_CODE_MAP.keys():
+            temp_time = time.time()
             session = boto3.session.Session(region_name=region, **settings.AWS_CREDENTIALS)
             ec2_client = session.client('ec2')
 
@@ -42,5 +29,5 @@ class Command(BaseCommand):
                 results.extend(response['InstanceTypes'])
 
             self.save_data_to_mongo(region_code=region,data=results)
-        # print(results)
+            print(region, time.time() - temp_time)
         print(time.time() - start)
