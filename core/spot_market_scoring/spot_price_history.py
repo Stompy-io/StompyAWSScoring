@@ -121,22 +121,22 @@ def update_spot_price_history(client, s3client, dbclient, region, system,days_ba
     :param client: s3 clients
     :param path: read file from path/spot_price_history
     """
-
+    indices = ['AvailabilityZone', 'InstanceType', 'ProductDescription', 'SpotPrice', 'Timestamp']
     response = get_spot_price_history(client,region,days_back,system)
+    df = pd.DataFrame(response, columns=indices)
 
-    df = to_dataframe(response)
     # print(f'Appending {region}, {system}')
     # df['Timestamp'] = df.index
 
 
     try:
-        # prev_df = read_from_s3(s3client, region, system, year)
-        #
-        # df = pd.concat((prev_df,df))
-        # df['SpotPrice'] = df['SpotPrice'].astype('float')
-        # df.sort_values(['InstanceType', 'AvailabilityZone', 'Timestamp'],inplace=True)
-        # df.drop_duplicates(inplace=True)
-        # df.reset_index(drop=True,inplace=True)
+        prev_df = read_from_s3(s3client, region, system, year)
+
+        df = pd.concat((prev_df,df))
+        df['SpotPrice'] = df['SpotPrice'].astype('float')
+        df.sort_values(['InstanceType', 'AvailabilityZone', 'Timestamp'],inplace=True)
+        df.drop_duplicates(inplace=True)
+        df.reset_index(drop=True,inplace=True)
 
         write_to_s3(df, s3client, region, system, year)
         print(f"{region} {system} updated")
@@ -226,6 +226,15 @@ def generate_spot_instance_list(response) -> dict:
                 Key=key,
                 Body=json.dumps(region_dict)
             )
+            db = dbclient['spot-market-scores']
+            db.spot_instance_list.remove({})
+
+            for region, region_dict in si.items():
+                for sys, sys_dict in si[region].items():
+                    db.spot_instance_list.insert_one({
+                        "region": region,
+                        "system": sys,
+                        "instanceList": sys_dict})
 
         except Exception as e:
             print(f'[ERR] {region} {system} : {e}')
