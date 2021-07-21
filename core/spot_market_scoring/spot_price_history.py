@@ -399,21 +399,21 @@ def read_from_mongo(dbclient, region: str = 'us-east-1',
 
 if __name__ == '__main__':
 
-    from user import get_client_list
+    from core.spot_market_scoring.user import get_client_list
     clients = get_client_list(**conf.AWS_CREDENTIALS)
     #clients = get_client_list(**settings.AWS_CREDENTIALS)
 
     region = 'ap-east-1'
     client = clients[region]
 
-    print("----Example for reading spot price from AWS----")
-    response = get_spot_price_history(client, days_back=1, region=region,
-                                      instanceType='p3.16xlarge',
-                                      availabilityZone='us-east-1a',
-                                       productDescription='Windows (Amazon VPC)'
-                                      )
-    df = to_dataframe(response)
-    print(df)
+    # print("----Example for reading spot price from AWS----")
+    # response = get_spot_price_history(client, days_back=1, region=region,
+    #                                   instanceType='p3.16xlarge',
+    #                                   availabilityZone='us-east-1a',
+    #                                    productDescription='Windows (Amazon VPC)'
+    #                                   )
+    # df = to_dataframe(response)
+    # print(df)
 
     # #i_df = reformat(df)
     # print(df)
@@ -425,16 +425,19 @@ if __name__ == '__main__':
     # print(df)
 
     #
-
+    from pymongo import MongoClient
     s3client = boto3.client('s3', **conf.AWS_CREDENTIALS)
-    update_spot_price_history_in_all_region(clients, year=2021, days_back=90, s3client=s3client, local=False)
+    dbclient = MongoClient(conf.MONGODB_CONNECTION)
+    # update_spot_price_history_in_all_region(clients, year=2021, days_back=30,
+    #                                         s3client=s3client, dbclient=dbclient, local=False)
+
     # read_from_s3(s3client,'ap-east-1',SYSTEM_LIST[0],2021)
     # upload_all_spot_price_history_to_s3(s3client,data_path)
     # print("----Example for generating a spot instance list----")
     # si_list = generate_spot_instance_list(data_path)
 
     print("----Example for getting statistics from s3 price files----")
-    for region in ['ap-east-1','ap-northeast-3']:
+    for region in ['af-south-1','ap-east-1','ap-northeast-3']:
         for system in SYSTEM_LIST:
             avg_res, std_res, ins_dict = get_savings_statistics(region=region,system=system,
                                                                     year=2021, period="Month",
