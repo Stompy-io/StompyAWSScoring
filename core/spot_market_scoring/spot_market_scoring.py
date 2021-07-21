@@ -26,9 +26,6 @@ def calculate_scores(df, r_col, az_cols):
 
 
 def get_scores(ondemand, sa_response, s3client, dbclient):
-    #clear previous score
-    db = dbclient['spot-market-scores']
-    db.scores.delete_many({})
 
     regions = sorted(REGION_CODE_MAP.keys())
     executor = ThreadPoolExecutor()
@@ -36,11 +33,10 @@ def get_scores(ondemand, sa_response, s3client, dbclient):
     response = ConcurrentTaskPool(executor).add([
         ConcurrentTask(executor, task=get_scores_helper,
                        t_args=(ondemand,sa_response, region, system, s3client,dbclient))
-        for system in SYSTEM_LIST for region in regions
+        for system in SYSTEM_LIST[:1] for region in regions[:1]
     ])
 
     # write to database
-    print("Finished saving all score")
     return True
 
 
@@ -176,8 +172,11 @@ def read_from_mongo(dbclient, region=None, system=None, azs=None, instanceTypes=
 
 
 def write_to_mongo(dbclient, df, region, system):
-    data_dict = df.to_dict(orient='records')
     db = dbclient['spot-market-scores']
+    db.scores.delete_many({"Region": region, "System": system})
+
+    data_dict = df.to_dict(orient='records')
+
     db.scores.insert_many(data_dict)
     return
 
@@ -186,11 +185,12 @@ if __name__ == '__main__':
     # pricing_client = boto3.client('pricing', region_name='us-east-1', **settings.AWS_CREDENTIALS)
     # s3client = boto3.client('s3', **settings.AWS_CREDENTIALS)
     # clients = user.get_client_list(**settings.AWS_CREDENTIALS)
-
+    import pymongo
     pricing_client = boto3.client('pricing', region_name='us-east-1', **conf.AWS_CREDENTIALS)
     s3client = boto3.client('s3', **conf.AWS_CREDENTIALS)
     clients = user.get_client_list(**conf.AWS_CREDENTIALS)
     dbclient = MongoClient(conf.MONGODB_CONNECTION)
+    db = dbclient['spot-market-scores']
 
     # sph.update_spot_price_history_in_all_region(clients, year=2021, days_back=10, s3client=s3client, local=False)
     # ec2.update_ondemand_price(pricing_client,s3client)
