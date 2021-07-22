@@ -145,7 +145,16 @@ def update_spot_price_history(client, s3client, dbclient, region, system,days_ba
         print(f'{region} {system} update failed')
         # print(f'{region} {system} data may not exist, please update data first')
 
-
+    db = dbclient['spot-market-scores']
+    ins_list = df['InstanceType'].unique().tolist()
+    filter = {
+        "region": region,
+        "system": system
+    }
+    update = {
+        "$set": {"instanceList": ins_list}
+    }
+    db.spot_instance_list.update_one(filter, update, upsert=True)
 
     return response
 
@@ -175,17 +184,13 @@ def get_savings_statistics(region: str, system:None,
     return avg_entries, std_entries, ins_dict
 
 
-def get_spot_instance_list(s3client):
+def get_spot_instance_list(dbclient, region, system):
     try:
-        key = 'ec2/spot_instance_list.json'
-
-        response = s3client.get_object(
-            Bucket='stompy-aws-dataset',
-            Key=key,
-        )['Body']
-        si_list = json.loads(response.read())
-
-        return si_list
+        db = dbclient['spot-market-scores']
+        response = db.spot_instance_list.find_one({'region': region,
+                                                   'system':system},
+                                                  {'_id': 0, 'instanceList':1})
+        return response
     except Exception as e:
         print(f'[ERR] : {e}')
         raise
