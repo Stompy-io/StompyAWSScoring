@@ -33,7 +33,7 @@ def get_scores(ondemand, sa_response, s3client, dbclient):
     response = ConcurrentTaskPool(executor).add([
         ConcurrentTask(executor, task=get_scores_helper,
                        t_args=(ondemand,sa_response, region, system, s3client,dbclient))
-        for system in SYSTEM_LIST[:1] for region in regions[:1]
+        for system in SYSTEM_LIST for region in regions
     ])
 
     # write to database
