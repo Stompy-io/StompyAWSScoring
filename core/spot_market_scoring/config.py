@@ -19,8 +19,6 @@ class CONFIG:
     # DATA_PATH = os.path.join(ROOT_PATH, 'Stompy.phase.2.data')
     DATA_PATH = "/Users/Sophiawang1228/Documents/GitHub/Stompy.phase.2.data"
 
-
-
     LOG_PATH = os.path.join(ROOT_PATH, 'logs')
     LOG_SIZE = 10 * 1024 * 1024
     LOG_COUNT = 100

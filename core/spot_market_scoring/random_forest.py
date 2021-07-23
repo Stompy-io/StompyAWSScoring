@@ -123,7 +123,7 @@ def predict(index,model):
     # print('Input: %s, Predicted: %.5f' % (row, yhat[0]))
     return yhat[0]
 
-def get_predicted_price(ins_dict=None,path:str=None,year:int=2021):
+def get_predicted_price(ins_dict=None,year:int=2021):
     #output in one file
     #read every file
 

@@ -77,7 +77,7 @@ def get_spot_advisor_data(path=None, file_date: [str, date] = None, dbclient = N
             write_to_local(path,response)
         else:
             write_to_mongo(dbclient,response, file_date)
-        return json.loads(response)['spot-advisor']
+        return json.loads(response)['spot_advisor']
 
 
 def read_from_s3(s3client, file_date):
@@ -304,17 +304,17 @@ def score_by_operating_system(response: dict) -> dict:
 
 
 def write_to_mongo(dbclient, response, file_date):
-    db = dbclient['spot-market-scores']
+    db = dbclient['spot_market_scores']
 
     spot_advisor = {
         'date': file_date,
         'data': response
     }
-    db.spot_advisor.insert_one(spot_advisor)
+    db.spot_advisor.update({'date': file_date}, spot_advisor,upsert=True)
     return
 
 def read_from_mongo(dbclient, file_date):
-    db = dbclient['spot-market-scores']
+    db = dbclient['spot_market_scores']
     collection = db['spot_advisor']
 
     response = collection.find_one({'date': file_date},{'_id': 0, 'data':1})

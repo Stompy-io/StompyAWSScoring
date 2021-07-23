@@ -27,7 +27,7 @@ import pandas as pd
 from datetime import datetime, timezone,timedelta
 import boto3
 import os
-import json
+# import json
 import time
 # from django.conf import settings
 from core.spot_market_scoring.config import conf
@@ -36,7 +36,7 @@ from core.spot_market_scoring.config import conf
 def get_spot_price_history(client, region, days_back: int = 30,
                            productDescription: str = None,
                            availabilityZone: str = None,
-                           instanceType: str = None) -> dict:
+                           instanceType: str = None) -> list:
     """
     Get spot price history for up to 90 days back in client's region
     :param client: ec2 client
@@ -64,12 +64,13 @@ def get_spot_price_history(client, region, days_back: int = 30,
             if indices is None:
                 indices = list(resp.keys())
             values.append(list(resp.values()))
+        return values
 
     except Exception as e:
         print(f'[ERR] {region}, {productDescription}: {e}')
 
 
-    return values
+
 
 
 def read_from_local(path, region,
@@ -119,7 +120,7 @@ def update_spot_price_history(client, s3client, dbclient, region, system,days_ba
     upload local data to s3 bucket
     with key: regions/productdescription/instancttype/year.csv
     :param client: s3 clients
-    :param path: read file from path/spot_price_history
+    :param
     """
     indices = ['AvailabilityZone', 'InstanceType', 'ProductDescription', 'SpotPrice', 'Timestamp']
     response = get_spot_price_history(client,region,days_back,system)
@@ -145,23 +146,23 @@ def update_spot_price_history(client, s3client, dbclient, region, system,days_ba
         print(f'{region} {system} update failed')
         # print(f'{region} {system} data may not exist, please update data first')
 
-    db = dbclient['spot-market-scores']
+    db = dbclient['aws_data']
     ins_list = df['InstanceType'].unique().tolist()
     filter = {
         "region": region,
         "system": system
     }
     update = {
-        "$set": {"instanceList": ins_list}
+        "$set": {"InstanceList": ins_list}
     }
-    db.spot_instance_list.update_one(filter, update, upsert=True)
+    db.ec2_spot_instances.update(filter, update, upsert=True)
 
     return response
 
 
-def get_savings_statistics(region: str, system:None,
+def get_savings_statistics(region: str, system:str,
                            year: int=2021, period="Month",
-                           s3client=None, days_back=90) -> (dict, dict):
+                           s3client=None, days_back=90):
 
     avg_entries, std_entries = {}, {}
     df = read_from_s3(s3client=s3client, region=region, system=system, year=year)
@@ -186,70 +187,17 @@ def get_savings_statistics(region: str, system:None,
 
 def get_spot_instance_list(dbclient, region, system):
     try:
-        db = dbclient['spot-market-scores']
+        db = dbclient['spot_market_scores']
         response = db.spot_instance_list.find_one({'region': region,
-                                                   'system':system},
-                                                  {'_id': 0, 'instanceList':1})
+                                                   'system': system},
+                                                  {'_id': 0, 'InstanceList':1})
         return response
     except Exception as e:
         print(f'[ERR] : {e}')
         raise
 
 
-def generate_spot_instance_list(response) -> dict:
-    """
-    read or generate spot instance list based on saved local directories.
-    :param path: path ends with ../spot_price_history
-    :param local: read from local or remote
-    """
-
-    # file_path = os.path.join(path, 'spot_price_history')
-    #
-    # if not os.path.exists(file_path):
-    #     print(f"{file_path} not found, please set local to False or",
-    #           f"run get_spot_price_history_in_all_region first")
-    #     raise FileNotFoundError
-    if not response:
-        print('Empty Response')
-        return
-    else:
-        region_dict, system_dict = {}, {}
-        for res in response:
-            df = to_dataframe(res)
-            region = df['AvailabilityZone'][0][:-1]
-            system = df['ProductDescription'][0]
-            system = system+' (Amazon VPC)'
-            ins = df['InstanceType'].unique().tolist()
-
-            system_dict[system] = ins
-            region_dict[region] = system_dict
-        try:
-            key = 'ec2/spot_instance_list.json'
-
-            s3client.put_object(
-                Bucket='stompy-aws-dataset',
-                Key=key,
-                Body=json.dumps(region_dict)
-            )
-            db = dbclient['spot-market-scores']
-            db.spot_instance_list.remove({})
-
-            for region, region_dict in si.items():
-                for sys, sys_dict in si[region].items():
-                    db.spot_instance_list.insert_one({
-                        "region": region,
-                        "system": sys,
-                        "instanceList": sys_dict})
-
-        except Exception as e:
-            print(f'[ERR] {region} {system} : {e}')
-            raise
-
-        return region_dict
-
-
-
-def to_dataframe(response: dict) -> pd.DataFrame:
+def to_dataframe(response: dict) :
     indices = ['AvailabilityZone', 'InstanceType', 'ProductDescription', 'SpotPrice', 'Timestamp']
     if not response:
         print("Empty Response")
@@ -285,7 +233,6 @@ def reformat(spot_prices: pd.DataFrame, resolution: str = '1D') -> pd.DataFrame:
 def get_mean_and_std(df, period: str) -> (dict, dict):
     """
     helper func: read file and get mean/std from timeseries data
-    :param filepath: path that contains file
     :param period: time window to calculate mean/std of price by
     return two statistics as dict
     """
