@@ -21,6 +21,7 @@
 
 """
 import os
+import boto3
 import pandas as pd
 from datetime import datetime, timezone,timedelta
 from spot_market_scoring.concurrent_task import *
