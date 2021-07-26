@@ -44,7 +44,7 @@ def get_scores_helper(ondemand,sa_response, region, system, s3client, dbclient):
     # ignored if missing On Demand/Spot Advisor data
     # iterate through price history's list
 
-    print(f'----calculating for {region} {system}----')
+    #print(f'----calculating for {region} {system}----')
     scores = []
     res_avg, res_std, ins_dict = sph.get_savings_statistics(region=region, days_back=30,
                                                             system=system, s3client=s3client, year=2021,
@@ -78,6 +78,8 @@ def get_scores_helper(ondemand,sa_response, region, system, s3client, dbclient):
             scores.append(dict(zip(columns,
                                    [region, system, ins, ins_scores['InstanceScores'],
                                     ins_scores['AZScores']])))
+        except KeyError:
+            pass
         except Exception as e:
             print(e)
             print(region, system, ins)

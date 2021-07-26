@@ -84,7 +84,7 @@ def update_ondemand_price_helper(client, dbclient, region, os):
         'location': REGION_CODE_MAP[region],
         'operatingSystem': os
     }
-    aws_data.pricing_product.delete_many({filter})
+    aws_data.pricing_product.delete_many(filter)
 
     total_prod = []
     for res in response:
@@ -107,17 +107,13 @@ def update_ondemand_price_helper(client, dbclient, region, os):
 def update_ondemand_price(client, dbclient):
     # EC2 alt
     os_list = OS_MAP.keys()
-
-    start = time.time()
-
     executor = ThreadPoolExecutor()
     response = ConcurrentTaskPool(executor).add([
         ConcurrentTask(executor, task=update_ondemand_price_helper,
                        t_args=(client, dbclient, region, prod))
         for prod in os_list for region in REGION_CODE_MAP
     ]).get_results(merge=True)
-    end = time.time()
-    print(f'Time used: {end - start}')
+
     df = pd.DataFrame(response)
     df['OnDemand'] = df.OnDemand.astype(float)
 
