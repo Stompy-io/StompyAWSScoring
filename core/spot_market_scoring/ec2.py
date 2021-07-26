@@ -87,15 +87,6 @@ def update_prod_info(dbclient):
         db_w.instance_types.update({'Region':region},data,upsert=True)
     return
 
-if __name__ == '__main__':
-
-
-
-    client = boto3.client('ec2', **settings.AWS_CREDENTIALS)
-
-    print(getRegionNames(client))
-    print(getGlobalInstanceTypes(client))
-
 
 
 

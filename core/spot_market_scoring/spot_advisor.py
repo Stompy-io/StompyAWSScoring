@@ -322,35 +322,3 @@ def read_from_mongo(dbclient, file_date):
     spot_advisor = json.loads(response['data'])['spot_advisor']
     return spot_advisor
 
-if __name__ == '__main__':
-    pd.set_option('display.max_rows', None)
-    pd.set_option('display.max_columns', None)
-    pd.set_option('display.width', 1000)
-
-
-    # response = get_spot_advisor_data(conf.DATA_PATH)  #date format YYYY-MM-DD
-
-    # rates = {0: "<5%", 1: "5-10%", 2: "10-15%", 3: "15-20%", 4: ">20%"}
-    # df['InterruptionRate'] = df['InterruptionRate'].apply(lambda x: rates[x])
-    # df['SavingsOverOnDemand'] = df['SavingsOverOnDemand'].apply(lambda x: round(x / 100, 2))
-    import boto3
-    s3client = boto3.client('s3', **settings.AWS_CREDENTIALS)
-    response = get_spot_advisor_data(s3client=s3client, local=False)
-    data = fetch_scores(response, region=['ap-northeast-1', 'ap-northeast-2'],
-                      product_description=['Linux/UNIX (Amazon VPC)'],
-                      instance_type=['m4.2xlarge', 'm4.4xlarge', 'm4.16xlarge'],
-                      alt=True)
-
-    # heatmap Demo
-    # to matrix
-    df = pd.DataFrame.from_dict(data)
-    print(df)
-
-    score_mx = df.pivot(index='Region', columns='InstanceType', values='Score')
-
-    ax = sns.heatmap(score_mx, vmin=0, vmax=1, cmap="YlGnBu", annot=True)
-
-    # client = boto3.client('s3', **settings.AWS_CREDENTIALS)
-    # for policy in strategies:
-    #     df = sa.model(**policy)
-    #     # sns.displot(df['Score'])

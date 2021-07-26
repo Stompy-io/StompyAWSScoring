@@ -63,5 +63,4 @@ if __name__ == '__main__':
     db = dbclient['product-info']
     # print(db.ec2_product.distinct("instanceFamily"))
 
-    ec2.random3(dbclient)
     # ec2.update_instance_list_by_family(dbclient)

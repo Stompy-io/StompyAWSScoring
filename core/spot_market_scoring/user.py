@@ -51,14 +51,3 @@ def get_client_list(**credentials):
         clients[region] = boto3.client('ec2', region_name=region, **credentials)
     return clients
 
-
-if __name__ == '__main__':
-    ec2 = boto3.client('ec2', **settings.AWS_CREDENTIALS)
-
-    # Retrieves all regions/endpoints that work with EC2
-    regions = get_region_list(ec2)
-    print('Regions:', regions)
-
-    # Retrieves availability zones only for region of the ec2 object
-    az = get_availability_zones(ec2)
-    print('Availability Zones:', az)
