@@ -1,3 +1,4 @@
+import boto3
 from spot_market_scoring.mappings import REGION_CODE_MAP
 
 
@@ -51,7 +52,6 @@ def get_client_list(**credentials):
 
 
 if __name__ == '__main__':
-    import boto3
     from django.conf import settings
     
     ec2 = boto3.client('ec2', **settings.AWS_CREDENTIALS)
