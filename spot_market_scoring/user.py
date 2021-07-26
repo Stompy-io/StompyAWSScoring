@@ -1,6 +1,4 @@
 from spot_market_scoring.mappings import REGION_CODE_MAP
-from django.conf import settings
-import boto3
 
 
 def get_subnet_AZ(ec2_client):
@@ -53,6 +51,9 @@ def get_client_list(**credentials):
 
 
 if __name__ == '__main__':
+    import boto3
+    from django.conf import settings
+    
     ec2 = boto3.client('ec2', **settings.AWS_CREDENTIALS)
 
     # Retrieves all regions/endpoints that work with EC2
