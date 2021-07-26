@@ -1,6 +1,7 @@
 import os
 import time
 import boto3
+import datetime
 from pymongo import MongoClient
 from spot_market_scoring import spot_market_scoring as sms
 from spot_market_scoring import spot_price_history as sph
@@ -13,6 +14,7 @@ AWS_CREDENTIALS = {'aws_access_key_id': os.getenv('ALGO_AWS_CREDENTIALS_ACCESS_K
 MONGODB_CONNECTION = os.getenv('ALGO_MONGODB_CONNECTION')
 
 if __name__ == '__main__':
+    print(f'Start to update mongodb. Time: {datetime.datetime.today()}')
     pricing_client = boto3.client('pricing', region_name='us-east-1', **AWS_CREDENTIALS)
     clients = user.get_client_list(**AWS_CREDENTIALS)
     dbclient = MongoClient(MONGODB_CONNECTION)
@@ -45,3 +47,5 @@ if __name__ == '__main__':
     start = time.time()
     response = sms.get_scores(ondemand, sa_response, s3client, dbclient)
     print(f'update score time used: {time.time() - start}')
+    print(f'Success to update mongodb. Time: {datetime.datetime.today()}')
+    
