@@ -1,10 +1,13 @@
 import numpy as np
 import pandas as pd
+import logging
 from spot_market_scoring import spot_price_history as sph
 from spot_market_scoring import random_forest as rdf
 from spot_market_scoring.mappings import *
 from spot_market_scoring.utils import normalize_by_columns,ParquetTranscoder
 from spot_market_scoring.concurrent_task import *
+
+logger = logging.getLogger(__name__)
 
 def scale_to_100(df, columns):
     for col in columns:
@@ -44,6 +47,7 @@ def get_scores_helper(ondemand,sa_response, region, system, s3client, dbclient):
     # iterate through price history's list
 
     #print(f'----calculating for {region} {system}----')
+
     scores = []
     res_avg, res_std, ins_dict = sph.get_savings_statistics(region=region, days_back=30,
                                                             system=system, s3client=s3client, year=2021,
@@ -57,8 +61,8 @@ def get_scores_helper(ondemand,sa_response, region, system, s3client, dbclient):
         # on demand price
         od_price = ins_price[ins_price['InstanceType'] == ins]['OnDemand']
         od_price = float(od_price)
-
         try:
+
             # random forest ->get prediction price
             pred_savings = {az: 1 - (ins_pred[ins][az] / od_price) for az in ins_pred[ins]}
 
@@ -78,11 +82,10 @@ def get_scores_helper(ondemand,sa_response, region, system, s3client, dbclient):
                                    [region, system, ins, ins_scores['InstanceScores'],
                                     ins_scores['AZScores']])))
         except KeyError:
-            pass
-        except Exception as e:
-            print(e)
-            print(region, system, ins)
-        continue
+            logger.exception(f'Missing data: {region}, {system}, {ins}')
+        except Exception:
+            logger.exception(f'Calculate score failed: {region}, {system}, {ins}')
+            continue
 
     scores_df = pd.DataFrame(scores)
     scores_df = pd.concat([scores_df, scores_df['InstanceScores'].apply(pd.Series)], axis=1).drop('InstanceScores',axis=1)
@@ -101,7 +104,7 @@ def get_scores_helper(ondemand,sa_response, region, system, s3client, dbclient):
     # write_to_s3(s3client,df,region,system)
     write_to_mongo(dbclient,df,region,system)
     end = time.time()
-    print(f'{region} {system} Finished with: {end - start} seconds')
+    logger.info(f'{region} {system} Finished with: {end - start} seconds')
     return scores_df.to_dict(orient='records')
 
 

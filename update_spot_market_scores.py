@@ -1,6 +1,7 @@
 import os
 import time
 import boto3
+import logging
 from pymongo import MongoClient
 from spot_market_scoring import spot_market_scoring as sms
 from spot_market_scoring import spot_price_history as sph
@@ -11,6 +12,10 @@ AWS_CREDENTIALS = {'aws_access_key_id': os.getenv('ALGO_AWS_CREDENTIALS_ACCESS_K
                    'aws_secret_access_key': os.getenv('ALGO_AWS_CREDENTIALS_SECRET_ACCESS_KEY')}
 
 MONGODB_CONNECTION = os.getenv('ALGO_MONGODB_CONNECTION')
+
+logging.basicConfig(filename='daily.log',level=logging.INFO,
+                    format='%(asctime)s:%(levelname)s:%(name)s:%(message)s')
+
 
 if __name__ == '__main__':
     pricing_client = boto3.client('pricing', region_name='us-east-1', **AWS_CREDENTIALS)

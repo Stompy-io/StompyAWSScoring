@@ -23,6 +23,7 @@ import json
 import requests
 import numpy as np
 import pandas as pd
+import logging
 from datetime import date, datetime
 from spot_market_scoring.mappings import SYSTEM_MAP
 from spot_market_scoring.utils import normalize_by_columns
@@ -30,7 +31,7 @@ from spot_market_scoring.utils import normalize_by_columns
 balanced_optim = {'savings_weight': 1,
                   'interruptions_weight': 1}
 
-
+logger = logging.getLogger(__name__)
 def get_spot_advisor_data(path=None, file_date: [str, date] = None, dbclient = None, local=False) -> dict:
     """
     load spot_advisor data from path, if file does not exist,
@@ -46,12 +47,12 @@ def get_spot_advisor_data(path=None, file_date: [str, date] = None, dbclient = N
         try:
             datetime.strptime(file_date, date_format)
         except ValueError:
-            print("Date format should be YYYY-MM-DD")
+            logger.error("Date format should be YYYY-MM-DD")
     if file_date is None:
         file_date = date.today().strftime("%Y-%m-%d")
 
     if not local and not dbclient:
-        print("Please either set local to True or pass in mongodb client")
+        logger.error("Please either set local to True or pass in mongodb client")
         return
     try:
         if local:
@@ -61,7 +62,7 @@ def get_spot_advisor_data(path=None, file_date: [str, date] = None, dbclient = N
             spot_advisor = read_from_mongo(dbclient, file_date)
             return spot_advisor
     except Exception as e:
-        print('Reading failed, downloading current date data')
+        logger.error('Reading failed, downloading current date data')
 
         url = "https://spot-bid-advisor.s3.amazonaws.com/spot-advisor-data.json"
         response = requests.get(url=url)
@@ -78,33 +79,33 @@ def read_from_s3(s3client, file_date):
     try:
         key = (f'ec2/spot_advisor/'
                f'advisor-{file_date}.json')
-        print(key)
+        logger.info(key)
         response = s3client.get_object(
             Bucket='stompy-aws-dataset',
             Key=key
         )['Body']
         return json.loads(response.read())
     except Exception as e:
-        print(f'[ERR] : {e}')
+        logger.error(f'[ERR] : {e}')
         raise
 
 
 def read_from_local(path,file_date):
     file_path = os.path.join(path, 'spot_advisor', f'advisor-{file_date}.json')
     try:
-        print(f"Reading file from {file_path}")
+        logger.info(f"Reading file from {file_path}")
         with open(file_path, 'r') as f:
             spot_advisor = json.loads(f.read())
         return spot_advisor
     except Exception as e:
-        print(f"File location: {file_path} does not exists")
+        logger.error(f"File location: {file_path} does not exists")
         raise
 
 
 def write_to_local(path, spot_advisor):
     file_date = date.today().strftime("%Y-%m-%d")
     file_path = os.path.join(path, 'spot_advisor', f'advisor-{file_date}.json')
-    print(f'Downloading file to {file_path}')
+    logger.info(f'Downloading file to {file_path}')
     with open(file_path, 'w') as f:
         f.write(json.dumps(spot_advisor))
     return
@@ -123,7 +124,7 @@ def write_to_s3(s3client, spot_advisor, file_date):
 
         return True
     except Exception as e:
-        print(f'[ERR] : {e}')
+        logger.error(f'[ERR] : {e}')
         raise
 
 
@@ -316,39 +317,3 @@ def read_from_mongo(dbclient, file_date):
 
     spot_advisor = json.loads(response['data'])['spot_advisor']
     return spot_advisor
-
-
-if __name__ == '__main__':
-    from django.conf import settings
-    
-    pd.set_option('display.max_rows', None)
-    pd.set_option('display.max_columns', None)
-    pd.set_option('display.width', 1000)
-
-
-    # response = get_spot_advisor_data(conf.DATA_PATH)  #date format YYYY-MM-DD
-
-    # rates = {0: "<5%", 1: "5-10%", 2: "10-15%", 3: "15-20%", 4: ">20%"}
-    # df['InterruptionRate'] = df['InterruptionRate'].apply(lambda x: rates[x])
-    # df['SavingsOverOnDemand'] = df['SavingsOverOnDemand'].apply(lambda x: round(x / 100, 2))
-    import boto3
-    s3client = boto3.client('s3', **settings.AWS_CREDENTIALS)
-    response = get_spot_advisor_data(s3client=s3client, local=False)
-    data = fetch_scores(response, region=['ap-northeast-1', 'ap-northeast-2'],
-                      product_description=['Linux/UNIX (Amazon VPC)'],
-                      instance_type=['m4.2xlarge', 'm4.4xlarge', 'm4.16xlarge'],
-                      alt=True)
-
-    # heatmap Demo
-    # to matrix
-    df = pd.DataFrame.from_dict(data)
-    print(df)
-
-    score_mx = df.pivot(index='Region', columns='InstanceType', values='Score')
-
-    ax = sns.heatmap(score_mx, vmin=0, vmax=1, cmap="YlGnBu", annot=True)
-
-    # client = boto3.client('s3', **settings.AWS_CREDENTIALS)
-    # for policy in strategies:
-    #     df = sa.model(**policy)
-    #     # sns.displot(df['Score'])

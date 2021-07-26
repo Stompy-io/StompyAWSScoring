@@ -23,11 +23,13 @@
 import os
 import boto3
 import pandas as pd
+import logging
 from datetime import datetime, timezone,timedelta
 from spot_market_scoring.concurrent_task import *
 from spot_market_scoring.mappings import *
 from spot_market_scoring.utils import *
 
+logger = logging.getLogger(__name__)
 
 def get_spot_price_history(client, region, days_back: int = 30,
                            productDescription: str = None,
@@ -62,7 +64,7 @@ def get_spot_price_history(client, region, days_back: int = 30,
         return values
 
     except Exception as e:
-        print(f'[ERR] {region}, {productDescription}: {e}')
+        logging.error(f'[ERR] {region}, {productDescription}: {e}')
 
 
 
@@ -92,7 +94,7 @@ def update_spot_price_history_in_all_region(clients: [boto3.client],
     # if not os.path.exists(path):
     #     print(f"{path} does not exists")
 
-    print('----Fetching data from AWS boto3----')
+    logger.info('----Fetching data from AWS boto3----')
     regions = sorted(REGION_CODE_MAP.keys())
     executor = ThreadPoolExecutor()
     response = ConcurrentTaskPool(executor).add([
@@ -125,11 +127,9 @@ def update_spot_price_history(client, s3client, dbclient, region, system,days_ba
         df.reset_index(drop=True,inplace=True)
 
         write_to_s3(df, s3client, region, system, year)
-        # print(f"{region} {system} updated")
+        # logger.error(f"{region} {system} updated")
     except Exception as e:
-        print(f'[ERR]: {e}')
-        print(f'{region} {system} update failed')
-        # print(f'{region} {system} data may not exist, please update data first')
+        logger.error(f'[ERR] {region} {system}: {e}')
 
     db = dbclient['aws_data']
     ins_list = df['InstanceType'].unique().tolist()
@@ -165,7 +165,7 @@ def get_savings_statistics(region: str, system:str,
             avg_entries[ins] = response_avg
             std_entries[ins] = response_std
         except Exception as e:
-            print(f'[ERR] {region} {system} {ins}: {e}')
+            logger.error(f'[ERR] {region} {system} {ins}: {e}')
             continue
     return avg_entries, std_entries, ins_dict
 
@@ -178,14 +178,14 @@ def get_spot_instance_list(dbclient, region, system):
                                                   {'_id': 0, 'InstanceList':1})
         return response
     except Exception as e:
-        print(f'[ERR] : {e}')
+        logger.error(f'[ERR] : {e}')
         raise
 
 
 def to_dataframe(response: dict) :
     indices = ['AvailabilityZone', 'InstanceType', 'ProductDescription', 'SpotPrice', 'Timestamp']
     if not response:
-        print("Empty Response")
+        logger.error("Empty Response")
         return
     spot_prices = pd.DataFrame(response, columns=indices)
 
@@ -221,7 +221,7 @@ def get_mean_and_std(df, period: str) -> (dict, dict):
                          '3 Months': 90}
 
     if period not in period_candidates.keys():
-        print("Value must be from one of the following: /n", period_candidates.keys())
+        logger.error("Value must be from one of the following: /n", period_candidates.keys())
         return
 
     if period_candidates[period] < len(df):
@@ -230,7 +230,7 @@ def get_mean_and_std(df, period: str) -> (dict, dict):
         idx = period_candidates[period]
 
     scores = df.iloc[-idx:]
-    # print(scores.mean(axis=0),scores.std(axis=0))
+    # logger.info(scores.mean(axis=0),scores.std(axis=0))
     return scores.mean(axis=0).to_dict(), scores.std(axis=0).to_dict()
 
 
@@ -297,7 +297,7 @@ def read_from_s3(s3client, region: str = 'us-east-1',
 
         return df
     except Exception as e:
-        print(e)
+        logger.error(e)
         raise
 
 
@@ -327,53 +327,3 @@ def read_from_mongo(dbclient, region: str = 'us-east-1',
     except Exception as e:
         raise
 
-if __name__ == '__main__':
-    import boto3
-    from spot_market_scoring.config import conf
-
-    from spot_market_scoring.user import get_client_list
-    clients = get_client_list(**conf.AWS_CREDENTIALS)
-    #clients = get_client_list(**settings.AWS_CREDENTIALS)
-
-    region = 'ap-east-1'
-    client = clients[region]
-
-    # print("----Example for reading spot price from AWS----")
-    # response = get_spot_price_history(client, days_back=1, region=region,
-    #                                   instanceType='p3.16xlarge',
-    #                                   availabilityZone='us-east-1a',
-    #                                    productDescription='Windows (Amazon VPC)'
-    #                                   )
-    # df = to_dataframe(response)
-    # print(df)
-
-    # #i_df = reformat(df)
-    # print(df)
-    #
-    # print("----Example for reading local price files----")
-    # df = read_from_local(data_path, 'af-south-1', 'Linux/UNIX (Amazon VPC)',
-    #                              't3.micro',2021)
-    #
-    # print(df)
-
-    #
-    from pymongo import MongoClient
-    s3client = boto3.client('s3', **conf.AWS_CREDENTIALS)
-    dbclient = MongoClient(conf.MONGODB_CONNECTION)
-    # update_spot_price_history_in_all_region(clients, year=2021, days_back=30,
-    #                                         s3client=s3client, dbclient=dbclient, local=False)
-
-    # read_from_s3(s3client,'ap-east-1',SYSTEM_LIST[0],2021)
-    # upload_all_spot_price_history_to_s3(s3client,data_path)
-    # print("----Example for generating a spot instance list----")
-    # si_list = generate_spot_instance_list(data_path)
-
-    print("----Example for getting statistics from s3 price files----")
-    for region in ['af-south-1','ap-east-1','ap-northeast-3']:
-        for system in SYSTEM_LIST:
-            avg_res, std_res, ins_dict = get_savings_statistics(region=region,system=system,
-                                                                    year=2021, period="Month",
-                                                                    s3client=s3client, days_back=30)
-    #         print('finished')
-    # print(ins_dict['t3.micro'])
-    # print(pd.DataFrame(avg_res))
