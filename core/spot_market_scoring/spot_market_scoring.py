@@ -1,15 +1,11 @@
 import numpy as np
-import boto3
 import pandas as pd
 from core.spot_market_scoring import spot_price_history as sph
-from core.spot_market_scoring import spot_advisor as sa
 from core.spot_market_scoring import random_forest as rdf
-from core.spot_market_scoring import user, ec2
 from core.spot_market_scoring.mappings import *
 from core.spot_market_scoring.utils import normalize_by_columns,ParquetTranscoder
 from core.spot_market_scoring.concurrent_task import *
 from core.spot_market_scoring.config import conf
-from pymongo import MongoClient
 
 def scale_to_100(df, columns):
     for col in columns:
@@ -30,13 +26,13 @@ def get_scores(ondemand, sa_response, s3client, dbclient):
     regions = sorted(REGION_CODE_MAP.keys())
     executor = ThreadPoolExecutor()
 
-    response = ConcurrentTaskPool(executor).add([
+    ConcurrentTaskPool(executor).add([
         ConcurrentTask(executor, task=get_scores_helper,
                        t_args=(ondemand,sa_response, region, system, s3client,dbclient))
         for system in SYSTEM_LIST for region in regions
     ])
 
-    # write to database
+
     return True
 
 
