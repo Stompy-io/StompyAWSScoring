@@ -32,6 +32,7 @@ import time
 # from django.conf import settings
 from core.spot_market_scoring.config import conf
 
+import logging
 
 def get_spot_price_history(client, region, days_back: int = 30,
                            productDescription: str = None,
@@ -45,10 +46,9 @@ def get_spot_price_history(client, region, days_back: int = 30,
     :param productDescription: operation systems,
     """
     # set filters
-    print(f'loading {region}, {productDescription} data from AWS')
 
     filters = {}
-    start_time = datetime.now(timezone.utc) - timedelta(days=days_back)
+    start_time = datetime.now(timezone.utc) - timedelta(hours=24*days_back)
     filters['StartTime'] = start_time
     if availabilityZone:
         filters['AvailabilityZone'] = availabilityZone
@@ -94,11 +94,10 @@ def update_spot_price_history_in_all_region(clients: [boto3.client],
     :param path: files will be saved in path/spot_price_history/..
     :param year: current year, corresponding to different file
     """
-    if not os.path.exists(path):
-        print(f"{path} does not exists")
+    # if not os.path.exists(path):
+    #     print(f"{path} does not exists")
 
     print('----Fetching data from AWS boto3----')
-    start = time.time()
     regions = sorted(REGION_CODE_MAP.keys())
     executor = ThreadPoolExecutor()
     response = ConcurrentTaskPool(executor).add([
@@ -107,11 +106,6 @@ def update_spot_price_history_in_all_region(clients: [boto3.client],
                                prod,days_back,year))
         for prod in SYSTEM_LIST for region in regions
     ]).get_results()
-    end = time.time()
-    print(f'Time used: {end - start}')
-    print("Finished saving all spot price history data into S3 bucket")
-    # update SI_List
-    # generate_spot_instance_list(response)
     return response
 
 
@@ -126,10 +120,6 @@ def update_spot_price_history(client, s3client, dbclient, region, system,days_ba
     response = get_spot_price_history(client,region,days_back,system)
     df = pd.DataFrame(response, columns=indices)
 
-    # print(f'Appending {region}, {system}')
-    # df['Timestamp'] = df.index
-
-
     try:
         prev_df = read_from_s3(s3client, region, system, year)
 
@@ -140,7 +130,7 @@ def update_spot_price_history(client, s3client, dbclient, region, system,days_ba
         df.reset_index(drop=True,inplace=True)
 
         write_to_s3(df, s3client, region, system, year)
-        print(f"{region} {system} updated")
+        # print(f"{region} {system} updated")
     except Exception as e:
         print(f'[ERR]: {e}')
         print(f'{region} {system} update failed')
