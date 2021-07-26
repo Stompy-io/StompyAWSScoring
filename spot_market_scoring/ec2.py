@@ -1,7 +1,6 @@
 import boto3
-from core.spot_market_scoring.mappings import REGION_CODE_MAP
-from core.spot_market_scoring.concurrent_task import *
-from django.conf import settings
+from spot_market_scoring.mappings import REGION_CODE_MAP
+from spot_market_scoring.concurrent_task import *
 
 
 def getRegionNames(ec2_client=None):
@@ -89,6 +88,7 @@ def update_prod_info(dbclient):
 
 if __name__ == '__main__':
 
+    from django.conf import settings
 
 
     client = boto3.client('ec2', **settings.AWS_CREDENTIALS)

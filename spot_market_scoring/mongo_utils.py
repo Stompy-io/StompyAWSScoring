@@ -1,11 +1,6 @@
 from pymongo import MongoClient
-from core.spot_market_scoring import spot_price_history as sph
-from core.spot_market_scoring import spot_market_scoring as sms
-from core.spot_market_scoring import spot_advisor as sa
-import boto3
-#from config import conf
-from core.spot_market_scoring.mappings import *
-from django.conf import settings
+from spot_market_scoring import spot_price_history as sph
+from spot_market_scoring.mappings import *
 
 def get_spot_instance_list(dbclient, region=None, system=None):
     db = dbclient['spot-market-scores']
@@ -40,6 +35,12 @@ def update_spot_instance_list(s3client, dbclient):
 
 
 if __name__ == '__main__':
+    from django.conf import settings
+    import boto3
+    
+    from spot_market_scoring import spot_market_scoring as sms
+    from spot_market_scoring import spot_advisor as sa
+    
     # dbclient = MongoClient(settings.MONGODB_CONNECTION)
     # # print(get_spot_instance_list(dbclient, region='us-west-1', system='Linux/UNIX (Amazon VPC)'))
     #
@@ -57,7 +58,7 @@ if __name__ == '__main__':
 
     MONGODB_CONNECTION = "mongodb+srv://sophia:nMOz5qpTQ7uRXLqC@spot-market-scores.mr8yo.mongodb.net/spot-market-scores?retryWrites=true&w=majority&authSource=admin"
     from pymongo import MongoClient
-    from core.spot_market_scoring import ec2
+    from spot_market_scoring import ec2
     dbclient = MongoClient(MONGODB_CONNECTION)
 
     db = dbclient['product-info']

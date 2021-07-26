@@ -20,19 +20,13 @@
     Helper Functions:
 
 """
-from core.spot_market_scoring.concurrent_task import *
-from core.spot_market_scoring.mappings import *
-from core.spot_market_scoring.utils import *
+import os
 import pandas as pd
 from datetime import datetime, timezone,timedelta
-import boto3
-import os
-# import json
-import time
-# from django.conf import settings
-from core.spot_market_scoring.config import conf
+from spot_market_scoring.concurrent_task import *
+from spot_market_scoring.mappings import *
+from spot_market_scoring.utils import *
 
-import logging
 
 def get_spot_price_history(client, region, days_back: int = 30,
                            productDescription: str = None,
@@ -193,13 +187,6 @@ def to_dataframe(response: dict) :
         print("Empty Response")
         return
     spot_prices = pd.DataFrame(response, columns=indices)
-    # set data format
-    # spot_prices["Timestamp"] = spot_prices['Timestamp'].astype('datetime64[ns]')
-    # spot_prices.set_index("Timestamp", inplace=True)
-    #spot_prices["SpotPrice"] = spot_prices.SpotPrice.astype(float)
-
-    # spot_prices.set_index("Timestamp", inplace=True)
-    # spot_prices.sort_index(inplace=True)
 
     return spot_prices
 
@@ -340,8 +327,10 @@ def read_from_mongo(dbclient, region: str = 'us-east-1',
         raise
 
 if __name__ == '__main__':
+    import boto3
+    from spot_market_scoring.config import conf
 
-    from core.spot_market_scoring.user import get_client_list
+    from spot_market_scoring.user import get_client_list
     clients = get_client_list(**conf.AWS_CREDENTIALS)
     #clients = get_client_list(**settings.AWS_CREDENTIALS)
 

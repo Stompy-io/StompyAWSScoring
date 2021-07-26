@@ -1,7 +1,7 @@
-from core.spot_market_scoring.mappings import REGION_CODE_MAP
 import json
 import pandas as pd
-from core.spot_market_scoring.concurrent_task import *
+from spot_market_scoring.mappings import REGION_CODE_MAP
+from spot_market_scoring.concurrent_task import *
 
 OS_MAP = {
     'Linux': 'Linux/UNIX (Amazon VPC)',

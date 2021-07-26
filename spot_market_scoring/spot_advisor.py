@@ -18,23 +18,17 @@
 
 """
 
-from django.conf import settings
-from core.spot_market_scoring.mappings import SYSTEM_MAP
-from datetime import datetime
-from .utils import listdir_nohidden
-from core.spot_market_scoring.utils import normalize_by_columns
-import requests
-import json
 import os
-import pandas as pd
+import json
+import requests
 import numpy as np
-from datetime import date
-from datetime import datetime
+import pandas as pd
+from datetime import date, datetime
+from spot_market_scoring.mappings import SYSTEM_MAP
+from spot_market_scoring.utils import normalize_by_columns
 
 balanced_optim = {'savings_weight': 1,
                   'interruptions_weight': 1}
-
-
 
 
 def get_spot_advisor_data(path=None, file_date: [str, date] = None, dbclient = None, local=False) -> dict:
@@ -313,6 +307,7 @@ def write_to_mongo(dbclient, response, file_date):
     db.spot_advisor.update({'date': file_date}, spot_advisor,upsert=True)
     return
 
+
 def read_from_mongo(dbclient, file_date):
     db = dbclient['spot_market_scores']
     collection = db['spot_advisor']
@@ -322,7 +317,10 @@ def read_from_mongo(dbclient, file_date):
     spot_advisor = json.loads(response['data'])['spot_advisor']
     return spot_advisor
 
+
 if __name__ == '__main__':
+    from django.conf import settings
+    
     pd.set_option('display.max_rows', None)
     pd.set_option('display.max_columns', None)
     pd.set_option('display.width', 1000)

@@ -1,0 +1,3 @@
+export ALGO_AWS_CREDENTIALS_ACCESS_KEY_ID="AKIAT2QFNTBGUDLJXUZ6"
+export ALGO_AWS_CREDENTIALS_SECRET_ACCESS_KEY="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"
+export ALGO_MONGODB_CONNECTION="mongodb+srv://dbuser:UljxA5tuOgT6BkmG@spot-market-scores.mr8yo.mongodb.net/myFirstDatabase?retryWrites=true&w=majority"

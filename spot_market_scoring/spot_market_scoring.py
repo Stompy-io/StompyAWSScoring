@@ -1,11 +1,10 @@
 import numpy as np
 import pandas as pd
-from core.spot_market_scoring import spot_price_history as sph
-from core.spot_market_scoring import random_forest as rdf
-from core.spot_market_scoring.mappings import *
-from core.spot_market_scoring.utils import normalize_by_columns,ParquetTranscoder
-from core.spot_market_scoring.concurrent_task import *
-from core.spot_market_scoring.config import conf
+from spot_market_scoring import spot_price_history as sph
+from spot_market_scoring import random_forest as rdf
+from spot_market_scoring.mappings import *
+from spot_market_scoring.utils import normalize_by_columns,ParquetTranscoder
+from spot_market_scoring.concurrent_task import *
 
 def scale_to_100(df, columns):
     for col in columns:
