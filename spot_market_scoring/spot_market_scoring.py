@@ -82,7 +82,7 @@ def get_scores_helper(ondemand,sa_response, region, system, s3client, dbclient):
                                    [region, system, ins, ins_scores['InstanceScores'],
                                     ins_scores['AZScores']])))
         except KeyError:
-            logger.exception(f'Missing data: {region}, {system}, {ins}')
+            logger.error(f'Missing data: {region}, {system}, {ins}')
         except Exception:
             logger.exception(f'Calculate score failed: {region}, {system}, {ins}')
             continue
