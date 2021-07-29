@@ -1,16 +1,13 @@
 import numpy as np
-import boto3
 import pandas as pd
-from . import spot_price_history as sph
-from . import spot_advisor as sa
-from . import random_forest as rdf
-from . import user, ec2
-from .mappings import *
-from .utils import normalize_by_columns,ParquetTranscoder
-from .concurrent_task import *
-from django.conf import settings
+import logging
+from spot_market_scoring import spot_price_history as sph
+from spot_market_scoring import random_forest as rdf
+from spot_market_scoring.mappings import *
+from spot_market_scoring.utils import normalize_by_columns,ParquetTranscoder
+from spot_market_scoring.concurrent_task import *
 
-
+logger = logging.getLogger(__name__)
 
 def scale_to_100(df, columns):
     for col in columns:
@@ -26,32 +23,31 @@ def calculate_scores(df, r_col, az_cols):
     return df
 
 
-def get_scores(ondemand, sa_response, s3client):
-    start = time.time()
+def get_scores(ondemand, sa_response, s3client, dbclient):
+
     regions = sorted(REGION_CODE_MAP.keys())
     executor = ThreadPoolExecutor()
 
-    response = ConcurrentTaskPool(executor).add([
+    ConcurrentTaskPool(executor).add([
         ConcurrentTask(executor, task=get_scores_helper,
-                       t_args=(ondemand,sa_response, region, system, s3client))
-        for system in SYSTEM_LIST  for region in regions
+                       t_args=(ondemand,sa_response, region, system, s3client,dbclient))
+        for system in SYSTEM_LIST for region in regions
     ])
 
-    end = time.time()
-    # write to database
-    print(f'Total Time used: {end - start}')
-    print("Finished saving all spot price history data into S3 bucket")
+
     return True
 
 
-def get_scores_helper(ondemand,sa_response, region, system, s3client):
+def get_scores_helper(ondemand,sa_response, region, system, s3client, dbclient):
     ## region -> sys -> ins
     columns = ['Region', 'System', 'InstanceType', 'InstanceScores', 'AZScores']
     start = time.time()
-    # some instance are ignored if missing On Demand/Spot Advisor data
+    # some instance are
+    # ignored if missing On Demand/Spot Advisor data
     # iterate through price history's list
 
-    print(f'----calculating for {region} {system}----')
+    #print(f'----calculating for {region} {system}----')
+
     scores = []
     res_avg, res_std, ins_dict = sph.get_savings_statistics(region=region, days_back=30,
                                                             system=system, s3client=s3client, year=2021,
@@ -65,8 +61,8 @@ def get_scores_helper(ondemand,sa_response, region, system, s3client):
         # on demand price
         od_price = ins_price[ins_price['InstanceType'] == ins]['OnDemand']
         od_price = float(od_price)
-
         try:
+
             # random forest ->get prediction price
             pred_savings = {az: 1 - (ins_pred[ins][az] / od_price) for az in ins_pred[ins]}
 
@@ -85,10 +81,11 @@ def get_scores_helper(ondemand,sa_response, region, system, s3client):
             scores.append(dict(zip(columns,
                                    [region, system, ins, ins_scores['InstanceScores'],
                                     ins_scores['AZScores']])))
-        except Exception as e:
-            print(e)
-            print(region, system, ins)
-        continue
+        except KeyError:
+            logger.error(f'Missing data: {region}, {system}, {ins}')
+        except Exception:
+            logger.exception(f'Calculate score failed: {region}, {system}, {ins}')
+            continue
 
     scores_df = pd.DataFrame(scores)
     scores_df = pd.concat([scores_df, scores_df['InstanceScores'].apply(pd.Series)], axis=1).drop('InstanceScores',axis=1)
@@ -104,9 +101,10 @@ def get_scores_helper(ondemand,sa_response, region, system, s3client):
                    value_name="Score")
     df.drop(columns=['r', 's'], inplace=True)
 
-    write_to_s3(s3client,df,region,system)
+    # write_to_s3(s3client,df,region,system)
+    write_to_mongo(dbclient,df,region,system)
     end = time.time()
-    print(f'{region} {system} Finished with: {end - start} seconds')
+    logger.info(f'{region} {system} Finished with: {end - start} seconds')
     return scores_df.to_dict(orient='records')
 
 
@@ -128,8 +126,6 @@ def write_to_s3(s3client, df,region,system):
     except Exception as e:
         raise
 
-    return True
-
 
 def read_from_s3(s3client, region, system):
     try:
@@ -148,20 +144,36 @@ def read_from_s3(s3client, region, system):
         raise
 
 
-def write_to_mongo():
-    pass
-def read_from_mongo():
-    pass
 
-if __name__ == '__main__':
+def read_from_mongo(dbclient, region=None, system=None, azs=None, instanceTypes=None):
+    db = dbclient['spot_market_scores']
+    scores = db['scores']
 
-    pricing_client = boto3.client('pricing', region_name='us-east-1', **settings.AWS_CREDENTIALS)
-    s3client = boto3.client('s3', **settings.AWS_CREDENTIALS)
-    clients = user.get_client_list(**settings.AWS_CREDENTIALS)
+    filters = {}
+    if region:
+        filters['Region'] = region
+    if system:
+        filters['System'] = system
 
-    # ec2.update_ondemand_price(pricing_client,s3client)
-    ondemand = ec2.get_ondemand_price_list(s3client)
-    ondemand.reset_index(drop=True,inplace=True)
+    if isinstance(azs,list):
+        filters['AvailabilityZone'] = {"$in":azs}
+    if isinstance(instanceTypes, list):
+        filters['InstanceType'] = {"$in": instanceTypes}
 
-    sa_response = sa.get_spot_advisor_data(s3client=s3client, local=False)
-    response = get_scores(ondemand, sa_response, s3client)
+    cursor = scores.find(filters,{'_id':0})
+    result=[]
+    for x in cursor:
+        result.append(x)
+
+    result = {'result': result}
+    return result
+
+
+def write_to_mongo(dbclient, df, region, system):
+    db = dbclient['spot_market_scores']
+    db.scores.delete_many({"Region": region, "System": system})
+
+    data_dict = df.to_dict(orient='records')
+
+    db.scores.insert_many(data_dict)
+    return

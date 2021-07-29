@@ -1,0 +1,3 @@
+export ALGO_MONGODB_CONNECTION="mongodb+srv://sophia:nMOz5qpTQ7uRXLqC@spot-market-scores.mr8yo.mongodb.net/spot-market-scores?retryWrites=true&w=majority"
+export ALGO_AWS_CREDENTIAL_ACCESS_KEY_ID=AKIAT2QFNTBGUDLJXUZ6
+export ALGO_AWS_CREDENTIAL_SECRET_ACCESS_KEY=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

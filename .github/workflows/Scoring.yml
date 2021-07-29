@@ -1,0 +1,38 @@
+name: Scoring
+
+on:
+  push:
+    branches:
+      - develop
+  schedule:
+    - cron: 0 0 * * *
+
+jobs:
+  Scoring:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8'
+
+    - name: Install dependencies
+      run: |
+        python -m venv venv
+        source venv/bin/activate
+        python -m pip install --upgrade pip
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+    - name: Run Scoring
+      run: |
+        source venv/bin/activate
+        python update_spot_market_scores.py
+      env:
+        ALGO_AWS_CREDENTIALS_ACCESS_KEY_ID: ${{ secrets.ALGO_AWS_CREDENTIALS_ACCESS_KEY_ID }}
+        ALGO_AWS_CREDENTIALS_SECRET_ACCESS_KEY: ${{ secrets.ALGO_AWS_CREDENTIALS_SECRET_ACCESS_KEY }}
+        ALGO_MONGODB_CONNECTION: ${{ secrets.ALGO_MONGODB_CONNECTION }}
